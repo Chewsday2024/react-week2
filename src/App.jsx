@@ -3,6 +3,10 @@ import axios from 'axios';
 
 import './App.scss';
 
+
+const baseUrl = import.meta.env.VITE_BASE_URL;
+const apiPath = import.meta.env.VITE_API_PATH;
+
 function App() {
   const [tempProduct, setTempProduct] = useState(null);
   
@@ -15,34 +19,40 @@ function App() {
 
   const [isAuth, setIsAuth] = useState(false);
 
-  function handleSubmit (e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
 
     const account = {
       username: userNameRaf.current.value,
       password: passWordRaf.current.value
     }
 
-    axios.post(`${import.meta.env.VITE_BASE_URL}/v2/admin/signin`, account)
-      .then(res => {
-        const { token, expired } = res.data;
-        document.cookie = `dogfood=${token}; expired=${new Date(expired)}`;
-        setIsAuth(true);
+    try {
+      const res = await axios.post(`${baseUrl}/v2/admin/signin`, account);
+      const { token, expired } = res.data;
+      document.cookie = `dogfood=${token}; expired=${new Date(expired)}`;
+      
+      setIsAuth(true);
+      
+      axios.defaults.headers.common['Authorization'] = token;
 
-        axios.defaults.headers.common['Authorization'] = token;
+      const productsRes = await axios.get(`${baseUrl}/v2/api/${apiPath}/admin/products`);
+      setProducts(productsRes.data.products);
 
-        axios.get(`${import.meta.env.VITE_BASE_URL}/v2/api/${import.meta.env.VITE_API_PATH}/admin/products`)
-          .then(res => {
-            setProducts(res.data.products)
-          }).catch(err => {
-            console.log(err);
-          })
+    } catch (err) {
+      console.log(err);
+    }
+  }
 
-        console.log(res);
-      }).catch(err => {
-        console.log(err);
-      })
+  const checkIsLogin = async () => {
+    try {
+      await axios.post(`${baseUrl}/v2/api/user/check`);
+      alert('使用者已登入！');
+      
+    } catch (err) {
+      console.log(err);
+      setIsAuth(false);
+    }
   }
 
 
@@ -54,8 +64,11 @@ function App() {
       {isAuth ? (
         <div className="container">
           <div className="row mt-5">
-            <div className="col-md-6">
-              <h2>產品列表</h2>
+            <div className="col-md-6 ">
+              <div className='d-flex flex-column'>
+                <button type='button' onClick={checkIsLogin} className='btn btn-success align-self-start mb-3'>檢查使用者是否登入</button>
+                <h2 className='align-self-start'>產品列表</h2>
+              </div>
               <table className="table">
                 <thead>
                   <tr>
